@@ -1,0 +1,6 @@
+{
+  "name": "Interactive Design Portfolio",
+  "description": "Uma Hero Section altamente refinada para Portfólio de Design Digital, trazendo um fundo com Canvas de Grid responsivo que interage com o mouse por física de molas, adesivos interativos arrastáveis e som sintetizado.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

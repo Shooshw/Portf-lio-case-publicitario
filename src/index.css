@@ -1,0 +1,121 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700;800&family=Playfair+Display:ital,wght@1,600&display=swap');
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Custom design styles & animations */
+@layer utilities {
+  /* Dynamic floating animation for 3D elements */
+  .animate-float-slow {
+    animation: float 8s ease-in-out infinite;
+  }
+  
+  .animate-float-medium {
+    animation: float-alt 6s ease-in-out infinite;
+  }
+
+  .animate-spin-slow {
+    animation: spin 20s linear infinite;
+  }
+
+  /* Glassmorphism text glow effects */
+  .text-glow-light {
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.8), 0 0 30px rgba(56, 189, 248, 0.4);
+  }
+
+  .text-glow-dark {
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.2), 0 0 40px rgba(139, 92, 246, 0.6);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-15px) rotate(1.5deg);
+  }
+}
+
+@keyframes float-alt {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(12px) rotate(-2deg);
+  }
+}
+
+/* Iridescent overlay styling for cursive Olá glass letterings */
+.iridescent-glass {
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.15));
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.iridescent-glass:hover {
+  filter: drop-shadow(0 15px 30px rgba(139, 92, 246, 0.3)) hue-rotate(45deg);
+  transform: scale(1.03);
+}
+
+/* Prevent text selections to make dragging stickers smooth and enable vertical scroll */
+html, body {
+  margin: 0;
+  height: 100%;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+body {
+  overflow-x: hidden;
+  overflow-y: scroll;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Custom Swiss design style selection indicator and background grids */
+.swiss-grid-bg {
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+.dark .swiss-grid-bg {
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+/* Horizontal scrolling marquee style */
+.Horizontal {
+  overflow: hidden;
+  height: 40vh;
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+}
+
+.Horizontal__text {
+  display: flex;
+  width: max-content;
+  white-space: nowrap;
+  gap: 4vw;
+  padding-left: 100vw;
+  will-change: transform;
+}
+
+.heading-xl {
+  font-size: clamp(2.5rem, 10vw, 11rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.05em;
+}
+
+
