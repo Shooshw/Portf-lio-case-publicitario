@@ -1026,13 +1026,9 @@ export default function App() {
           </div>
 
           {/* ==================== FIRST PAGE FOOTER ==================== */}
-          <footer className="first-page-footer w-full border-t border-slate-400/10 pt-4 mt-8 flex justify-between items-center font-mono text-[10px] uppercase tracking-widest text-[#1a1917] dark:text-stone-400 select-none z-20">
-            <div className="flex items-center gap-1.5">
-            </div>
-            
-            {/* THE PAPER AIRPLANE AT THE RIGHT OF THE FIRST PAGE FOOTER */}
-            <div className="flex items-center gap-4">
-              <span className="hidden sm:inline text-[#1a1917] dark:text-stone-400 font-medium">EXPLORAR TRABALHO</span>
+          <footer className="first-page-footer w-full border-t border-slate-400/10 pt-4 mt-6 flex justify-start items-center font-mono text-[10px] uppercase tracking-widest text-[#1a1917] dark:text-stone-400 select-none z-20">
+            {/* THE PAPER AIRPLANE NEATLY ALIGNED ON THE LEFT WITH NO UNNECESSARY EMPTY SPACE */}
+            <div className="flex items-center gap-3">
               <div ref={planeRef} className="will-change-transform z-50">
                 <motion.div
                   className="pointer-events-auto cursor-pointer flex items-center justify-center p-2 rounded-full bg-white/5 hover:bg-white/10 dark:bg-stone-900/40 dark:hover:bg-stone-900/60 transition-all duration-300 border border-slate-400/10 hover:border-yellow-400/30"
