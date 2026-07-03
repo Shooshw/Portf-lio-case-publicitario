@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Lenis from "lenis";
 
 gsap.registerPlugin(ScrollTrigger);
 import { 
@@ -94,30 +95,27 @@ export default function App() {
   const isTransitioningRef = useRef<boolean>(false);
   const planeRef = useRef<HTMLDivElement>(null);
 
+  // Ref for Lenis smooth scroll instance
+  const lenisInstanceRef = useRef<Lenis | null>(null);
+
   // Telemetry indicators
   const [timeStr, setTimeStr] = useState<string>("");
   const [windowSize, setWindowSize] = useState({ width: 1200, height: 800 });
 
   // DOM Refs to bypass React re-renders for mouse movement (rendering at 120fps smooth!)
-  const lensRef = useRef<HTMLDivElement>(null);
+  const displacementMapRef = useRef<SVGFEDisplacementMapElement>(null);
   const mouseCoordsRef = useRef<HTMLSpanElement>(null);
   const backdropArtRef = useRef<HTMLDivElement>(null);
   const heroContainerRef = useRef<HTMLDivElement>(null);
   const sobreMimRef = useRef<HTMLDivElement>(null);
-  const trailContainerRef = useRef<HTMLDivElement>(null);
-  const lastTrailPosRef = useRef({ x: -1000, y: -1000 });
+
+  // Refs for HAOQI-style floating project preview image
+  const hoverImageRef = useRef<HTMLDivElement>(null);
+  const hoverImgElRef = useRef<HTMLImageElement>(null);
+  const xToRef = useRef<any>(null);
+  const yToRef = useRef<any>(null);
+
   const mouseNormRef = useRef({ x: 0, y: 0 });
-
-  // Smooth movement tracking without React re-renders
-  const moveTimeoutRef = useRef<any>(null);
-  const isMovingRef = useRef<boolean>(false);
-
-  // Clean up timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (moveTimeoutRef.current) clearTimeout(moveTimeoutRef.current);
-    };
-  }, []);
 
   // Update window size on mount and resize
   useEffect(() => {
@@ -129,100 +127,121 @@ export default function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Initialize Lenis smooth scroll and connect with GSAP ScrollTrigger
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // smooth expo easing
+      orientation: "vertical",
+      gestureOrientation: "vertical",
+      smoothWheel: true,
+    });
+
+    lenisInstanceRef.current = lenis;
+
+    // Connect with GSAP ScrollTrigger update
+    lenis.on("scroll", () => {
+      ScrollTrigger.update();
+    });
+
+    const updateLenis = (time: number) => {
+      lenis.raf(time * 1000);
+    };
+
+    gsap.ticker.add(updateLenis);
+    gsap.ticker.lagSmoothing(0);
+
+    return () => {
+      lenis.destroy();
+      gsap.ticker.remove(updateLenis);
+      lenisInstanceRef.current = null;
+    };
+  }, []);
+
+  // Initialize quickTo helpers for the floating project images
+  useEffect(() => {
+    if (!hoverImageRef.current) return;
+    xToRef.current = gsap.quickTo(hoverImageRef.current, "x", { duration: 0.4, ease: "power2.out" });
+    yToRef.current = gsap.quickTo(hoverImageRef.current, "y", { duration: 0.4, ease: "power2.out" });
+  }, []);
+
   // Performance-optimized direct DOM mouse position handler
   const handleMouseMove = (x: number, y: number) => {
-    // Track normalized mouse coordinates (-1 to 1) relative to screen center
+    // Track normalized mouse coordinates (-1 to 1) relative to screen center for 3D glass artwork tilt
     mouseNormRef.current = {
       x: (x - window.innerWidth / 2) / (window.innerWidth / 2),
       y: (y - window.innerHeight / 2) / (window.innerHeight / 2)
     };
 
-    // 1. Position and activate the borderless liquefy lens
-    if (lensRef.current) {
-      lensRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
-      lensRef.current.style.opacity = "1";
-
-      // Dynamically activate the liquefy (distortion) filter only when the mouse is moving!
-      if (!isMovingRef.current) {
-        isMovingRef.current = true;
-        lensRef.current.style.backdropFilter = "url(#liquefy-lens)";
-        lensRef.current.style.setProperty("-webkit-backdrop-filter", "url(#liquefy-lens)");
-      }
-
-      // Clear the timeout to detect when mouse stops moving
-      if (moveTimeoutRef.current) {
-        clearTimeout(moveTimeoutRef.current);
-      }
-
-      // If mouse stays stationary for 150ms, fade out the liquefy lens
-      moveTimeoutRef.current = setTimeout(() => {
-        isMovingRef.current = false;
-        if (lensRef.current) {
-          lensRef.current.style.backdropFilter = "none";
-          lensRef.current.style.setProperty("-webkit-backdrop-filter", "none");
-          lensRef.current.style.opacity = "0";
-        }
-      }, 150);
-    }
-
-    // 1.1 Spawn trail elements if mouse moved enough distance to prevent overcrowding
-    const lastPos = lastTrailPosRef.current;
-    const dist = Math.hypot(x - lastPos.x, y - lastPos.y);
-    if (dist > 8) { // Spawn more frequently for a dense, continuous trail!
-      lastTrailPosRef.current = { x, y };
-      
-      if (trailContainerRef.current) {
-        const trail = document.createElement("div");
-        trail.className = "absolute pointer-events-none rounded-full";
-        
-        // Beautiful tapered liquid distortion trail
-        const size = 35;
-        trail.style.width = `${size}px`;
-        trail.style.height = `${size}px`;
-        trail.style.left = `${x}px`;
-        trail.style.top = `${y}px`;
-        trail.style.transform = "translate3d(-50%, -50%, 0) scale(1.1)";
-        trail.style.backdropFilter = "url(#liquefy-lens)";
-        trail.style.setProperty("-webkit-backdrop-filter", "url(#liquefy-lens)");
-        
-        // Physically gorgeous liquid glass look
-        trail.style.background = isDarkMode
-          ? "radial-gradient(circle, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 50%, rgba(255,255,255,0) 100%)"
-          : "radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0) 100%)";
-        trail.style.boxShadow = isDarkMode
-          ? "0 8px 32px 0 rgba(0, 0, 0, 0.2)"
-          : "0 8px 32px 0 rgba(31, 38, 135, 0.05)";
-        trail.style.opacity = "1";
-        trail.style.transition = "transform 1.2s cubic-bezier(0.1, 0.8, 0.2, 1), opacity 1.2s cubic-bezier(0.1, 0.8, 0.2, 1)";
-
-        trailContainerRef.current.appendChild(trail);
-
-        // Schedule fade out and scale down in the next paint frame
-        requestAnimationFrame(() => {
-          // Force a reflow
-          void trail.offsetWidth;
-          trail.style.opacity = "0";
-          trail.style.transform = "translate3d(-50%, -50%, 0) scale(0.15)";
-        });
-
-        // Clean up element from DOM after transition completes
-        setTimeout(() => {
-          trail.remove();
-        }, 1200);
-      }
-    }
-
-    // 2. Update the live cursor coordinates in the footer
+    // Update the live cursor coordinates in the footer
     if (mouseCoordsRef.current) {
-      const padX = String(x).padStart(4, "0");
-      const padY = String(y).padStart(4, "0");
+      const padX = String(Math.round(x)).padStart(4, "0");
+      const padY = String(Math.round(y)).padStart(4, "0");
       mouseCoordsRef.current.textContent = `${padX} X ${padY} Y`;
     }
+  };
 
-    // 3. Keep the Iridescent "Olá" Artwork sharp and clear at all times
-    if (backdropArtRef.current) {
-      backdropArtRef.current.style.filter = "drop-shadow(0 25px 50px rgba(0,0,0,0.18))";
+  // High-performance liquid glass interaction for "Olá" artwork using GSAP
+  const handleArtworkMouseMove = () => {
+    if (!displacementMapRef.current) return;
+    gsap.killTweensOf(displacementMapRef.current);
+
+    // Quick scale up to 40, then smooth ease back to 0
+    gsap.to(displacementMapRef.current, {
+      attr: { scale: 40 },
+      duration: 0.1,
+      ease: "power1.out",
+      onComplete: () => {
+        gsap.to(displacementMapRef.current, {
+          attr: { scale: 0 },
+          duration: 0.8,
+          ease: "power2.out",
+        });
+      }
+    });
+  };
+
+  // Hover handlers for the HAOQI-style project list table rows
+  const handleProjectMouseEnter = (e: React.MouseEvent, imgUrl: string) => {
+    if (!hoverImgElRef.current || !hoverImageRef.current) return;
+    hoverImgElRef.current.src = imgUrl;
+    
+    gsap.killTweensOf(hoverImageRef.current);
+    // Set initial position immediately to prevent jumping from previous positions
+    gsap.set(hoverImageRef.current, {
+      x: e.clientX + 15,
+      y: e.clientY + 15,
+    });
+    
+    // Animate in: opacity, scale, etc.
+    gsap.to(hoverImageRef.current, {
+      opacity: 1,
+      scale: 1,
+      duration: 0.4,
+      ease: "power2.out",
+    });
+    
+    // Play subtle hover/click sound if enabled
+    if (soundEnabled) playClickSound();
+  };
+
+  const handleProjectMouseMove = (e: React.MouseEvent) => {
+    if (xToRef.current && yToRef.current) {
+      xToRef.current(e.clientX + 15);
+      yToRef.current(e.clientY + 15);
     }
+  };
+
+  const handleProjectMouseLeave = () => {
+    if (!hoverImageRef.current) return;
+    gsap.killTweensOf(hoverImageRef.current);
+    // Animate out
+    gsap.to(hoverImageRef.current, {
+      opacity: 0,
+      scale: 0.9,
+      duration: 0.3,
+      ease: "power2.out",
+    });
   };
 
   // Sound play wrappers with guards
@@ -245,9 +264,13 @@ export default function App() {
     if (overlaysRef.current) {
       isTransitioningRef.current = true;
       overlaysRef.current.trigger(isDarkMode, () => {
-        const el = document.querySelector(targetId);
-        if (el) {
-          el.scrollIntoView({ behavior: "auto" });
+        if (lenisInstanceRef.current) {
+          lenisInstanceRef.current.scrollTo(targetId, { immediate: true });
+        } else {
+          const el = document.querySelector(targetId);
+          if (el) {
+            el.scrollIntoView({ behavior: "auto" });
+          }
         }
         setCurrentView(targetId === "#trabalho" || targetId === "#manifesto" ? "portfolio" : "hero");
         setTimeout(() => {
@@ -255,9 +278,13 @@ export default function App() {
         }, 1000);
       });
     } else {
-      const el = document.querySelector(targetId);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth" });
+      if (lenisInstanceRef.current) {
+        lenisInstanceRef.current.scrollTo(targetId, { duration: 1.2 });
+      } else {
+        const el = document.querySelector(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" });
+        }
       }
     }
   };
@@ -708,11 +735,9 @@ export default function App() {
       {/* SVG Turbulence & Displacement Filter for Interactive Liquefy Effect */}
       <svg className="absolute w-0 h-0 pointer-events-none" aria-hidden="true">
         <defs>
-          <filter id="liquefy-lens" x="-50%" y="-50%" width="200%" height="200%">
-            {/* Lower baseFrequency makes the distortion ripples much larger */}
-            <feTurbulence type="fractalNoise" baseFrequency="0.007" numOctaves="3" result="noise" seed="2" />
-            {/* Higher scale makes the organic displacement much more dramatic */}
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="140" xChannelSelector="R" yChannelSelector="G" />
+          <filter id="liquid-glass-distortion" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" result="noise" />
+            <feDisplacementMap ref={displacementMapRef} in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G" />
           </filter>
         </defs>
       </svg>
@@ -761,10 +786,11 @@ export default function App() {
               e.currentTarget.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80";
             }}
             alt="Olá Glass Artwork"
-            className="w-full h-full object-contain pointer-events-none select-none relative z-10 transition-transform duration-75 ease-out"
+            className="w-full h-full object-contain pointer-events-auto select-none relative z-10 transition-transform duration-75 ease-out"
+            onMouseMove={handleArtworkMouseMove}
             style={{
               transform: "translateZ(30px)",
-              filter: "drop-shadow(0 15px 35px rgba(0,0,0,0.12))"
+              filter: "drop-shadow(0 15px 35px rgba(0,0,0,0.12)) url(#liquid-glass-distortion)"
             }}
             referrerPolicy="no-referrer"
           />
@@ -804,48 +830,11 @@ export default function App() {
         </motion.div>
       </div>
 
-      {/* 1.5 INTERACTIVE LIQUEFY LENS THAT FOLLOWS THE MOUSE (Zero lag direct DOM, raised to z-[4]) */}
-      <div
-        ref={lensRef}
-        className="absolute pointer-events-none z-[4] rounded-full flex items-center justify-center overflow-hidden opacity-0 transition-opacity duration-300"
-        style={{
-          width: 55,
-          height: 55,
-          left: 0,
-          top: 0,
-          transform: "translate3d(-1000px, -1000px, 0)",
-          background: isDarkMode 
-            ? "radial-gradient(circle, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 60%, rgba(255,255,255,0) 100%)"
-            : "radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.02) 60%, rgba(255,255,255,0) 100%)",
-        }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 dark:to-white/5 opacity-20 rounded-full" />
-      </div>
 
-      {/* High-performance container for the trailing liquefy elements */}
-      <div ref={trailContainerRef} className="absolute inset-0 pointer-events-none z-[4] overflow-hidden" />
 
-      {/* Dynamic Looping Video Background (Fixed in backdrop) */}
-      <div className={`fixed inset-0 pointer-events-none z-[2] overflow-hidden transition-all duration-1000 ${isDarkMode ? "bg-[#010101]" : "bg-[#fdfbf7]"}`}>
-        <div className={`absolute inset-0 transition-colors duration-1000 ${isDarkMode ? "bg-[#010101]" : "bg-[#fdfbf7]"}`} />
-        <video
-          key={isDarkMode ? "dark" : "light"}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          className="absolute inset-0 w-full h-full object-cover filter-none pointer-events-none transition-all duration-1000"
-          style={{ 
-            width: "100%", 
-            height: "100%", 
-            objectFit: "cover",
-            opacity: isDarkMode ? 0.08 : 0.03
-          }}
-        >
-          <source src="https://nicegui.io/static/clouds.mp4" type="video/mp4" />
-          <source src="https://assets.mixkit.co/videos/preview/mixkit-clouds-and-blue-sky-background-from-below-14227-large.mp4" type="video/mp4" />
-        </video>
+      {/* Theme Background (Fixed in backdrop) */}
+      <div className={`fixed inset-0 pointer-events-none z-[2] overflow-hidden transition-all duration-1000 ${isDarkMode ? "bg-[#0e100f]" : "bg-[#fdfbf7]"}`}>
+        <div className={`absolute inset-0 transition-colors duration-1000 ${isDarkMode ? "bg-[#0e100f]" : "bg-[#fdfbf7]"}`} />
       </div>
 
       {/* MAIN CONTAINER LAYOUT */}
@@ -1074,7 +1063,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* ==================== SECTION 2: PORTFOLIO GRID ==================== */}
+        {/* ==================== SECTION 2: PORTFOLIO TABLE (HAOQI-inspired) ==================== */}
         <section id="trabalho" className="relative py-24 w-full max-w-7xl mx-auto z-10 scroll-mt-12">
           <div className="border-t border-slate-400/20 pt-8 mb-16 flex flex-col md:flex-row justify-between items-start gap-4">
             <div>
@@ -1090,41 +1079,43 @@ export default function App() {
             </p>
           </div>
           
-          {/* Grid of 4 beautiful portfolio items styled with direct WebGL shader image liquid ripples */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-16">
-            {PROJECTS.map((project, i) => (
-              <div 
-                key={i} 
-                className="flex flex-col space-y-4 group pointer-events-auto cursor-pointer"
-                onClick={() => {
-                  triggerPop();
-                }}
-              >
-                <div className="aspect-[4/3] w-full">
-                  <ShaderImage 
-                    src={project.img} 
-                    alt={project.title} 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex justify-between items-start pt-2 border-b border-slate-400/10 pb-4">
-                  <div className="text-left">
-                    <span className="font-mono text-[10px] text-[#1a1917] dark:text-stone-400 font-bold uppercase tracking-wider">
-                      <SplitText text={project.category} />
-                    </span>
-                    <h3 className="font-display font-bold text-xl uppercase text-[#1a1917] dark:text-white mt-1 group-hover:text-amber-900 dark:group-hover:text-[#ffea2a] transition-colors duration-300">
-                      <SplitText text={project.title} />
-                    </h3>
-                    <p className="font-mono text-[11px] leading-relaxed text-[#1a1917] dark:text-stone-400 mt-2 max-w-md">
-                      <SplitText text={project.desc} />
-                    </p>
+          {/* Minimalist Projects Table (Inspired by HAOQI©2026) */}
+          <div className="flex flex-col border-t border-stone-200 dark:border-stone-800/60 mt-8">
+            {PROJECTS.map((project, i) => {
+              const numStr = String(i + 1).padStart(2, "0");
+              return (
+                <div
+                  key={i}
+                  className="grid grid-cols-12 gap-4 items-center py-6 md:py-8 border-b border-stone-200 dark:border-stone-800/60 group pointer-events-auto cursor-pointer transition-colors duration-300 hover:bg-stone-500/[0.02] dark:hover:bg-white/[0.02] px-2"
+                  onMouseEnter={(e) => handleProjectMouseEnter(e, project.img)}
+                  onMouseMove={handleProjectMouseMove}
+                  onMouseLeave={handleProjectMouseLeave}
+                  onClick={() => {
+                    triggerPop();
+                  }}
+                >
+                  {/* Coluna 1 (largura 1): O número do projeto em formato mono-espaçado */}
+                  <div className="col-span-1 font-mono text-xs md:text-sm text-stone-500 dark:text-stone-500 select-none">
+                    {numStr}
                   </div>
-                  <div className="flex flex-col items-end">
-                    <span className="font-mono text-xs font-bold text-[#1a1917] dark:text-white">[{project.year}]</span>
+
+                  {/* Coluna 2 (largura 5): O título do projeto em caixa alta, negrito e fonte display */}
+                  <div className="col-span-5 font-display font-extrabold uppercase text-lg sm:text-2xl md:text-3xl text-[#1a1917] dark:text-stone-100 group-hover:text-amber-900 dark:group-hover:text-[#ffea2a] transition-colors duration-300">
+                    {project.title}
+                  </div>
+
+                  {/* Coluna 3 (largura 4): A categoria do projeto em fonte mono-espaçada e tamanho menor */}
+                  <div className="col-span-4 font-mono text-[10px] md:text-xs text-stone-500 dark:text-stone-400 uppercase tracking-wider text-left">
+                    {project.category}
+                  </div>
+
+                  {/* Coluna 4 (largura 2): O ano alinhado à direita */}
+                  <div className="col-span-2 font-mono text-xs md:text-sm text-stone-600 dark:text-stone-400 text-right font-bold select-none">
+                    [{project.year}]
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -1153,6 +1144,23 @@ export default function App() {
             />
           </div>
         </footer>
+
+        {/* Floating Hover Project Image Container */}
+        <div
+          ref={hoverImageRef}
+          className="fixed top-0 left-0 pointer-events-none z-50 rounded-lg overflow-hidden w-[320px] h-[200px] opacity-0 shadow-2xl scale-90 border border-stone-200/20 dark:border-stone-800/20"
+          style={{
+            transformStyle: "preserve-3d",
+            willChange: "transform, opacity",
+          }}
+        >
+          <img
+            ref={hoverImgElRef}
+            src={undefined}
+            alt="Preview"
+            className="w-full h-full object-cover"
+          />
+        </div>
 
         {/* LIQUID WAVE SHAPE OVERLAYS PAGE TRANSITION */}
         <ShapeOverlays ref={overlaysRef} />
