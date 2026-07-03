@@ -182,22 +182,33 @@ export default function App() {
   };
 
   // High-performance liquid glass interaction for "Olá" artwork using GSAP
+  const handleArtworkMouseEnter = () => {
+    if (!displacementMapRef.current) return;
+    gsap.to(displacementMapRef.current, {
+      attr: { scale: 35 },
+      duration: 0.4,
+      ease: "power2.out",
+      overwrite: "auto"
+    });
+  };
+
   const handleArtworkMouseMove = () => {
     if (!displacementMapRef.current) return;
-    gsap.killTweensOf(displacementMapRef.current);
-
-    // Quick scale up to 40, then smooth ease back to 0
     gsap.to(displacementMapRef.current, {
-      attr: { scale: 40 },
-      duration: 0.1,
+      attr: { scale: 50 },
+      duration: 0.3,
       ease: "power1.out",
-      onComplete: () => {
-        gsap.to(displacementMapRef.current, {
-          attr: { scale: 0 },
-          duration: 0.8,
-          ease: "power2.out",
-        });
-      }
+      overwrite: "auto"
+    });
+  };
+
+  const handleArtworkMouseLeave = () => {
+    if (!displacementMapRef.current) return;
+    gsap.to(displacementMapRef.current, {
+      attr: { scale: 0 },
+      duration: 0.8,
+      ease: "power2.out",
+      overwrite: "auto"
     });
   };
 
@@ -732,8 +743,8 @@ export default function App() {
         ${isDarkMode ? "dark bg-[#0e100f] text-stone-100" : "bg-[#fdfbf7] text-stone-900"}
       `}
     >
-      {/* SVG Turbulence & Displacement Filter for Interactive Liquefy Effect */}
-      <svg className="absolute w-0 h-0 pointer-events-none" aria-hidden="true">
+      {/* SVG Turbulence & Displacement Filter for Interactive Liquefy Effect - Styled inline for robust browser compilation */}
+      <svg style={{ position: "absolute", width: "0px", height: "0px", pointerEvents: "none" }} aria-hidden="true">
         <defs>
           <filter id="liquid-glass-distortion" x="-20%" y="-20%" width="140%" height="140%">
             <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" result="noise" />
@@ -779,21 +790,30 @@ export default function App() {
             }}
           />
 
-          {/* Layer 2: The Core Rotating Plate Image (microwave-style spinning around center on scroll) */}
-          <img
-            src="/src/assets/images/regenerated_image_1782354215634.png"
-            onError={(e) => {
-              e.currentTarget.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80";
-            }}
-            alt="Olá Glass Artwork"
-            className="w-full h-full object-contain pointer-events-auto select-none relative z-10 transition-transform duration-75 ease-out"
-            onMouseMove={handleArtworkMouseMove}
+          {/* Layer 2: The Core Rotating Plate Image wrapped in a div to separate drop-shadow from the liquid filter */}
+          <div
+            className="w-full h-full relative z-10 flex items-center justify-center pointer-events-auto"
             style={{
               transform: "translateZ(30px)",
-              filter: "drop-shadow(0 15px 35px rgba(0,0,0,0.12)) url(#liquid-glass-distortion)"
+              filter: "drop-shadow(0 15px 35px rgba(0,0,0,0.12))"
             }}
-            referrerPolicy="no-referrer"
-          />
+            onMouseEnter={handleArtworkMouseEnter}
+            onMouseMove={handleArtworkMouseMove}
+            onMouseLeave={handleArtworkMouseLeave}
+          >
+            <img
+              src="/src/assets/images/regenerated_image_1782354215634.png"
+              onError={(e) => {
+                e.currentTarget.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80";
+              }}
+              alt="Olá Glass Artwork"
+              className="w-full h-full object-contain select-none transition-transform duration-75 ease-out"
+              style={{
+                filter: "url(#liquid-glass-distortion)"
+              }}
+              referrerPolicy="no-referrer"
+            />
+          </div>
 
           {/* Layer 3: Dynamic Glossy Reflection Highlight (moves with mouse to fake shiny glass refraction) */}
           <div 
