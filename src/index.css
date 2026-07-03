@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-paper: #fdfbf7;
+    --text-charcoal: #1a1917;
+    --grid-line: rgba(26, 25, 23, 0.04);
+    --grid-dot: rgba(26, 25, 23, 0.07);
+  }
+
+  .dark {
+    --bg-paper: #0e100f;
+    --text-charcoal: #f3f4f6;
+    --grid-line: rgba(243, 244, 246, 0.03);
+    --grid-dot: rgba(243, 244, 246, 0.05);
+  }
+
+  body {
+    background-color: var(--bg-paper);
+    color: var(--text-charcoal);
+    font-family: 'JetBrains Mono', 'Space Mono', monospace;
+    overflow-x: hidden;
+    transition: background-color 0.8s cubic-bezier(0.16, 1, 0.3, 1), color 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+  }
+  .font-sans {
+    font-family: 'Inter', sans-serif;
+  }
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Blueprint Grid */
+.swiss-dotted-grid {
+  background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 25s linear infinite;
+}

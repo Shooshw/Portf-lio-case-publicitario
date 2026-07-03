@@ -1,0 +1,5 @@
+{
+  "name": "Portfólio de Cases Publicitários",
+  "description": "Portfólio interativo de publicidade e design com grade suíça de precisão, simulador de ondas de água em WebGL, stickers magnéticos interativos e áudio minimalista.",
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
