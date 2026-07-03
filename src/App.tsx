@@ -165,6 +165,17 @@ export default function App() {
     yToRef.current = gsap.quickTo(hoverImageRef.current, "y", { duration: 0.4, ease: "power2.out" });
   }, []);
 
+  // Global window mousemove listener to feed handleMouseMove coordinates flawlessly
+  useEffect(() => {
+    const onGlobalMouseMove = (e: MouseEvent) => {
+      handleMouseMove(e.clientX, e.clientY);
+    };
+    window.addEventListener("mousemove", onGlobalMouseMove);
+    return () => {
+      window.removeEventListener("mousemove", onGlobalMouseMove);
+    };
+  }, []);
+
   // Performance-optimized direct DOM mouse position handler
   const handleMouseMove = (x: number, y: number) => {
     // Track normalized mouse coordinates (-1 to 1) relative to screen center for 3D glass artwork tilt
@@ -179,37 +190,33 @@ export default function App() {
       const padY = String(Math.round(y)).padStart(4, "0");
       mouseCoordsRef.current.textContent = `${padX} X ${padY} Y`;
     }
-  };
 
-  // High-performance liquid glass interaction for "Olá" artwork using GSAP
-  const handleArtworkMouseEnter = () => {
-    if (!displacementMapRef.current) return;
-    gsap.to(displacementMapRef.current, {
-      attr: { scale: 35 },
-      duration: 0.4,
-      ease: "power2.out",
-      overwrite: "auto"
-    });
-  };
+    // High-performance liquid glass interaction for "Olá" artwork by proximity calculation
+    if (backdropArtRef.current && displacementMapRef.current) {
+      const rect = backdropArtRef.current.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const dist = Math.hypot(x - centerX, y - centerY);
 
-  const handleArtworkMouseMove = () => {
-    if (!displacementMapRef.current) return;
-    gsap.to(displacementMapRef.current, {
-      attr: { scale: 50 },
-      duration: 0.3,
-      ease: "power1.out",
-      overwrite: "auto"
-    });
-  };
-
-  const handleArtworkMouseLeave = () => {
-    if (!displacementMapRef.current) return;
-    gsap.to(displacementMapRef.current, {
-      attr: { scale: 0 },
-      duration: 0.8,
-      ease: "power2.out",
-      overwrite: "auto"
-    });
+      // Define influence radius (closer to artwork center = stronger distortion wave)
+      const maxDist = 600;
+      if (dist < maxDist) {
+        const strength = (1 - dist / maxDist) * 55;
+        gsap.to(displacementMapRef.current, {
+          attr: { scale: strength },
+          duration: 0.4,
+          ease: "power2.out",
+          overwrite: "auto"
+        });
+      } else {
+        gsap.to(displacementMapRef.current, {
+          attr: { scale: 0 },
+          duration: 0.6,
+          ease: "power2.out",
+          overwrite: "auto"
+        });
+      }
+    }
   };
 
   // Hover handlers for the HAOQI-style project list table rows
@@ -744,7 +751,7 @@ export default function App() {
       `}
     >
       {/* SVG Turbulence & Displacement Filter for Interactive Liquefy Effect - Styled inline for robust browser compilation */}
-      <svg style={{ position: "absolute", width: "0px", height: "0px", pointerEvents: "none" }} aria-hidden="true">
+      <svg style={{ position: "absolute", width: "100%", height: "100%", top: 0, left: 0, opacity: 0.01, pointerEvents: "none", zIndex: -1 }} aria-hidden="true">
         <defs>
           <filter id="liquid-glass-distortion" x="-20%" y="-20%" width="140%" height="140%">
             <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" result="noise" />
@@ -797,9 +804,6 @@ export default function App() {
               transform: "translateZ(30px)",
               filter: "drop-shadow(0 15px 35px rgba(0,0,0,0.12))"
             }}
-            onMouseEnter={handleArtworkMouseEnter}
-            onMouseMove={handleArtworkMouseMove}
-            onMouseLeave={handleArtworkMouseLeave}
           >
             <img
               src="/src/assets/images/regenerated_image_1782354215634.png"
